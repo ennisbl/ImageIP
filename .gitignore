@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Signing artifacts
+*.sig
+*.meta.json
+
+# Distributions
+dist/
+build/
+*.spec
+
+# IDEs
+.vscode/
+.idea/
+
+# Output images
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.tiff
+*.bmp
+
+# Profiles & runtime
+profiles/profiles.json
+
+# Packaging
+ImageIP.zip

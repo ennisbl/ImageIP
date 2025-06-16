@@ -1,0 +1,5 @@
+Pillow
+piexif
+python-gnupg
+pywin32; platform_system == "Windows"
+xattr; platform_system != "Windows"
