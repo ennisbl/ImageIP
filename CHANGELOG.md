@@ -5,6 +5,37 @@ All notable changes to ImageIP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-09-01
+
+### 🧹 Repository Cleanup & Professional Build System
+
+### Added
+- **External build system** for clean, professional builds
+- **Repository cleanup** removing 50%+ build artifacts and clutter  
+- **Enhanced .gitignore** to prevent future build pollution
+- **Streamlined codebase** down to 19 essential files
+- **Professional development workflow** with separated build environment
+- **Reusable build scripts** that can be used for future versions
+
+### Changed
+- **Repository structure** now contains only essential source code and documentation
+- **Build process** moved to external workspace to maintain clean repository
+- **Version bumped** to 1.1.0 for the cleaned release
+
+### Removed
+- **Build artifacts** (build/, dist/, __pycache__, *.spec files)
+- **Excessive documentation** (duplicate build guides, summary files)
+- **Development scripts** moved to external build system
+- **Version artifacts** and temporary files
+
+### Technical Improvements
+- **Clean git history** with proper separation of source vs. build
+- **Faster repository cloning** due to reduced file count
+- **Professional software development practices** implemented
+- **Maintainable codebase** with clear organization
+
+---
+
 ## [1.0.2] - 2025-09-01
 
 ### 🎉 Major Architecture Overhaul & Documentation Enhancement

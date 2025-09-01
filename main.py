@@ -9,12 +9,12 @@ This module serves as the main entry point for the GUI application.
 
 Author: Bernard Ennis
 License: MIT
-Version: 1.0.2
+Version: 1.1.0
 """
 
 from gui import launch_gui
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 
 def main():
     """Launch the ImageIP graphical user interface."""

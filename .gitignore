@@ -24,22 +24,44 @@ desktop.ini
 *.meta.json
 .json
 
-# Distributions
+# Build artifacts and distributions
 dist/
 build/
 *.spec
+*.exe
+*.app
+*.dmg
+.build/
+releases/
+temp_build/
+
+# Build scripts and documentation (keep source clean)
+build_release.py
+build_release.bat
+quick_build.py
+BUILD_*.md
+CLEANUP_*.md
+*_STRATEGY.md
+PROJECT_SUMMARY.md
+
+# External build system artifacts  
+ImageIP-v*-Test.spec
+*.spec
+
+# Version artifacts
+[0-9]*.[0-9]*.[0-9]*
+[0-9]*.[0-9]*
+[0-9]*
 
 # IDEs
 .vscode/
 .idea/
 
-# Output images
-*.jpg
-*.jpeg
-*.png
-*.webp
-*.tiff
-*.bmp
+# Test images (keep assets/)
+test_image.jpg
+test_*.jpg
+*.test.jpg
+sample_*.png
 
 # Profiles & runtime
 profiles/profiles.json

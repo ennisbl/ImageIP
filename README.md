@@ -1,7 +1,7 @@
 # ImageIP - Digital Rights Management & Image Signing Tool
 
 ![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Version](https://img.shields.io/badge/version-1.0.2-green)
+![Version](https://img.shields.io/badge/version-1.1.0-green)
 ![MIT License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-Production--ready-brightgreen)
 ![Made by Bernard Ennis](https://img.shields.io/badge/made%20by-Bernard%20Ennis-blueviolet)

@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 import os
 
 APP_NAME = "ImageIP"
-VERSION = "1.0.2"
+VERSION = "1.1.0"
 AUTHOR = "Bernard Ennis"
-AUTHOR_EMAIL = "contact@imageip.app"
+AUTHOR_EMAIL = "majikthijs@gmail.com"
 DESCRIPTION = "Digital Rights & Metadata Companion for Image Creators"
 ICON_FILE = "assets/ImageIP_logo.png"
 

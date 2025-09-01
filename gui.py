@@ -34,6 +34,9 @@ License: MIT
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
+# Import version from setup.py for centralized version management
+from setup import VERSION
+
 # Correct local module imports:
 from profile_manager import (
     launch_profile_browser,
@@ -50,7 +53,7 @@ from signature_verifier import verify_image_signature
 def launch_gui():
     """Start the ImageIP main window."""
     root = tk.Tk()
-    root.title("ImageIP — Digital Rights & Signature Assistant v1.0.2")
+    root.title(f"ImageIP — Digital Rights & Signature Assistant v{VERSION}")
     root.geometry("360x260")
     root.resizable(False, False)
 
