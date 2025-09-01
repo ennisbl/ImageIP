@@ -5,6 +5,22 @@ All notable changes to ImageIP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-09-01
+
+### 🔧 Version Management Optimization
+
+### Fixed
+- **Version centralization**: Resolved setuptools import conflicts by keeping VERSION in setup.py
+- **Import optimization**: Implemented file-reading approach to avoid circular imports
+- **Build system stability**: Fixed external_builder.py to work without triggering setuptools
+- **Cleaner architecture**: All modules now safely read version from setup.py without import issues
+
+### Technical Improvements
+- Centralized version management with setup.py as single source of truth
+- Safe version reading without setuptools interference
+- Improved module import reliability
+- Enhanced build system compatibility
+
 ## [1.1.0] - 2025-09-01
 
 ### 🧹 Repository Cleanup & Professional Build System

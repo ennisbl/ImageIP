@@ -14,9 +14,22 @@ import sys
 import shutil
 import subprocess
 import json
+import re
 from pathlib import Path
 
-from setup import VERSION
+def get_version():
+    """Get version from setup.py without triggering setuptools."""
+    setup_path = Path(__file__).parent / 'setup.py'
+    with open(setup_path, 'r') as f:
+        content = f.read()
+    
+    # Find VERSION = "x.x.x" pattern
+    version_match = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', content)
+    if version_match:
+        return version_match.group(1)
+    return "1.1.0"  # fallback
+
+VERSION = get_version()
 
 class ImageIPBuilder:
     def __init__(self, source_repo_path, build_workspace_path=None):

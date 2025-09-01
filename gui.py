@@ -34,9 +34,6 @@ License: MIT
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-# Import version from setup.py for centralized version management
-from setup import VERSION
-
 # Correct local module imports:
 from profile_manager import (
     launch_profile_browser,
@@ -50,10 +47,24 @@ from signing_engine import sign_images_in_folder
 from signature_viewer import view_embedded_signature
 from signature_verifier import verify_image_signature
 
+def get_version():
+    """Get version from setup.py without triggering setuptools."""
+    import os
+    import re
+    setup_path = os.path.join(os.path.dirname(__file__), 'setup.py')
+    with open(setup_path, 'r') as f:
+        content = f.read()
+    
+    # Find VERSION = "x.x.x" pattern
+    version_match = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', content)
+    if version_match:
+        return version_match.group(1)
+    return "1.1.0"  # fallback
+
 def launch_gui():
     """Start the ImageIP main window."""
     root = tk.Tk()
-    root.title(f"ImageIP — Digital Rights & Signature Assistant v{VERSION}")
+    root.title(f"ImageIP — Digital Rights & Signature Assistant v{get_version()}")
     root.geometry("360x260")
     root.resizable(False, False)
 
