@@ -11,7 +11,7 @@ import os
 import json
 import tkinter as tk
 from tkinter import ttk, messagebox
-from utils import gpg_key_exists, generate_gpg_key
+from crypto_fingerprint import gpg_manager
 from copyright_types import LICENSE_CHOICES
 
 PROFILE_DIR = "profiles"
@@ -63,6 +63,10 @@ def prompt_for_profile(existing=None):
     gpg_entry = ttk.Entry(win, textvariable=gpg_var)
     gpg_entry.pack()
     gpg_entry.insert(0, existing.get("gpg_key", "") if existing else "")
+    
+    # Info about automatic key generation
+    info_text = "A signing key will be created automatically for this email"
+    ttk.Label(win, text=info_text, font=("Segoe UI", 8), foreground="gray").pack(pady=(5, 0))
 
     ttk.Label(win, text="License").pack(pady=(10, 0))
     license_var = tk.StringVar()
@@ -81,10 +85,15 @@ def prompt_for_profile(existing=None):
             messagebox.showwarning("Missing Info", "Profile name and author are required.")
             return
 
-        if gpg_key and not gpg_key_exists(gpg_key):
-            if messagebox.askyesno("GPG Key Missing", f"No key found for '{gpg_key}'. Generate it?"):
-                generate_gpg_key(gpg_key)
-                messagebox.showinfo("Key Created", f"GPG key for {gpg_key} created.")
+        if gpg_key and not gpg_manager.key_exists(gpg_key):
+            if messagebox.askyesno("GPG Key Missing", f"No signing key found for '{gpg_key}'. Generate it automatically?"):
+                try:
+                    # Generate key with no passphrase for automatic signing
+                    fingerprint = gpg_manager.generate_key(gpg_key, passphrase="")
+                    messagebox.showinfo("Key Created", f"Signing key for {gpg_key} created successfully!\nFingerprint: {fingerprint[:16]}...")
+                except Exception as e:
+                    messagebox.showerror("Key Generation Failed", f"Failed to create signing key: {e}")
+                    return
 
         profile = {
             "name": name,
@@ -186,3 +195,14 @@ def load_last_used_profile():
             return json.load(f).get("last")
     except Exception:
         return None
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.withdraw()  # Hide the main root window
+
+    def on_profile_selected(profile):
+        print("Selected profile:")
+        print(json.dumps(profile, indent=2))
+
+    launch_profile_browser(root, on_profile_selected)
+    root.mainloop()

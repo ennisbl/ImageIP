@@ -13,10 +13,19 @@ import platform
 from datetime import datetime
 from PIL import Image
 import piexif
-import gnupg
 
-# Initialize GPG instance
-gpg = gnupg.GPG()
+def normalise_strings(s):
+    return " ".join(s.strip().split())
+
+def clean_xp_field(field):
+    if isinstance(field, tuple):
+        field = bytes(field)
+    if isinstance(field, bytes):
+        return normalise_strings(field.decode("utf-16le", "ignore"))
+    if isinstance(field, str):
+        return normalise_strings(field)
+    return ""
+
 
 def has_transparency(image: Image.Image) -> bool:
     """
@@ -65,7 +74,6 @@ def extract_creation_year(image_path: str) -> int:
     except Exception:
         return datetime.now().year
 
-
 def tag_filesystem_metadata(file_path: str, label: str):
     """
     Write metadata directly to the file system based on OS platform.
@@ -96,28 +104,3 @@ def tag_filesystem_metadata(file_path: str, label: str):
                 dump({"label": label}, f, indent=2)
         except:
             print(f"Failed to tag metadata for {file_path}: {e}")
-
-
-def gpg_key_exists(key_id: str) -> bool:
-    """
-    Check if the given GPG key exists in the local keyring.
-
-    Args:
-        key_id (str): Email or user ID to check.
-
-    Returns:
-        bool: True if key exists, False otherwise.
-    """
-    return any(key_id in uid for key in gpg.list_keys() for uid in key.get("uids", []))
-
-
-def generate_gpg_key(name_email: str):
-    """
-    Generate a new GPG key with default parameters.
-
-    Args:
-        name_email (str): Email address for the new key.
-    """
-    name = name_email.split("@")[0]
-    input_data = gpg.gen_key_input(name_email=name_email, name_real=name, passphrase="")
-    return gpg.gen_key(input_data)
