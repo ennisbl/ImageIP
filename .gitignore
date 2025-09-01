@@ -5,7 +5,7 @@ __pycache__/
 *.pyd
 
 # Virtual environments
-venv/
+.venv/
 .env/
 
 # macOS
@@ -22,6 +22,7 @@ desktop.ini
 # Signing artifacts
 *.sig
 *.meta.json
+.json
 
 # Distributions
 dist/
@@ -42,6 +43,7 @@ build/
 
 # Profiles & runtime
 profiles/profiles.json
+last_used.json
 
 # Packaging
-ImageIP.zip
+*.zip
