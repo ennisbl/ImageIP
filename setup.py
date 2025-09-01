@@ -1,7 +1,7 @@
 from setuptools import setup
 
 APP_NAME = "ImageIP"
-VERSION = "1.0.0"
+VERSION = "1.0.2"
 AUTHOR = "Bernard Ennis"
 DESCRIPTION = "Digital Rights & Metadata Companion for Image Creators"
 ICON_FILE = "assets/icon.png"  # Change to .icns if using for macOS app
