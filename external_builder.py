@@ -16,6 +16,8 @@ import subprocess
 import json
 from pathlib import Path
 
+from setup import VERSION
+
 class ImageIPBuilder:
     def __init__(self, source_repo_path, build_workspace_path=None):
         self.source_path = Path(source_repo_path).resolve()
@@ -132,7 +134,7 @@ class ImageIPBuilder:
                 "pyinstaller",
                 "--onefile",
                 "--windowed",
-                "--name", f"ImageIP-v1.1.0-{platform}",
+                "--name", f"ImageIP-v{VERSION}-{platform}",
                 "--distpath", str(self.build_artifacts / "executables"),
                 "--workpath", str(self.build_workspace / "temp"),
                 "--clean"
@@ -170,7 +172,7 @@ class ImageIPBuilder:
                 print("✅ Executable built successfully")
                 
                 # Check if executable was created
-                exec_name = f"ImageIP-v1.1.0-{platform}.exe" if platform.lower() == "windows" else f"ImageIP-v1.1.0-{platform}"
+                exec_name = f"ImageIP-v{VERSION}-{platform}.exe" if platform.lower() == "windows" else f"ImageIP-v{VERSION}-{platform}"
                 exec_path = self.build_artifacts / "executables" / exec_name
                 if exec_path.exists():
                     size_mb = exec_path.stat().st_size / (1024 * 1024)
@@ -216,8 +218,8 @@ class ImageIPBuilder:
         """Create final release package"""
         print("\n📦 Creating release package...")
         
-        version = "1.1.0"
-        release_dir = self.releases / f"ImageIP-v{version}-Release"
+
+        release_dir = self.releases / f"ImageIP-v{VERSION}-Release"
         
         if release_dir.exists():
             shutil.rmtree(release_dir)
@@ -247,7 +249,7 @@ class ImageIPBuilder:
         # Create release info
         release_info = {
             "name": "ImageIP",
-            "version": version,
+            "version": VERSION,
             "platform": sys.platform,
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
             "files": {}
@@ -289,7 +291,7 @@ class ImageIPBuilder:
     
     def build_all(self):
         """Complete build process"""
-        print("🚀 Starting ImageIP v1.1.0 Clean Build Process")
+        print(f"🚀 Starting ImageIP v{VERSION} Clean Build Process")
         print("=" * 55)
         
         try:
