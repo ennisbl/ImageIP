@@ -22,11 +22,9 @@ desktop.ini
 # Signing artifacts
 *.sig
 *.meta.json
-.json
 
 # Build artifacts and distributions
 dist/
-build/
 *.spec
 *.exe
 *.app
@@ -35,18 +33,27 @@ build/
 releases/
 temp_build/
 
-# Build scripts and documentation (keep source clean)
+# Build directory - keep tools but ignore artifacts
+build/dist/
+build/temp/
+build/__pycache__/
+build/*.exe
+build/*.zip
+build/*.spec
+build/.gitignore_build
+
+# Development directories
+dev/
+docs/development/
+
+# Legacy build scripts (remove after cleanup)
 build_release.py
 build_release.bat
 quick_build.py
-BUILD_*.md
-CLEANUP_*.md
-*_STRATEGY.md
-PROJECT_SUMMARY.md
 
 # External build system artifacts  
 ImageIP-v*-Test.spec
-*.spec
+.gitignore_build
 
 # Version artifacts
 [0-9]*.[0-9]*.[0-9]*
@@ -62,10 +69,10 @@ test_image.jpg
 test_*.jpg
 *.test.jpg
 sample_*.png
+*.pdf
 
-# Profiles & runtime
-profiles/profiles.json
-last_used.json
+# JSON files (profiles, config, runtime data)
+*.json
 
 # Packaging
 *.zip
