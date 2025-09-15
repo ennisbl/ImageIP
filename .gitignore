@@ -45,6 +45,11 @@ build/.gitignore_build
 dev/
 docs/development/
 
+# Documentation build artifacts (keep source docs)
+docs/build/
+docs/_build/
+docs/.doctrees/
+
 # Legacy build scripts (remove after cleanup)
 build_release.py
 build_release.bat
