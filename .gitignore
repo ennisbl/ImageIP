@@ -25,7 +25,6 @@ desktop.ini
 
 # Build artifacts and distributions
 dist/
-*.spec
 *.exe
 *.app
 *.dmg
@@ -53,6 +52,7 @@ quick_build.py
 
 # External build system artifacts  
 ImageIP-v*-Test.spec
+ImageIP-v*.*.*.spec
 .gitignore_build
 
 # Version artifacts
@@ -65,14 +65,17 @@ ImageIP-v*-Test.spec
 .idea/
 
 # Test images (keep assets/)
-test_image.jpg
-test_*.jpg
-*.test.jpg
-sample_*.png
+assets/images/
+*.jpg
+*.png
 *.pdf
+!ImageIP*.*
 
 # JSON files (profiles, config, runtime data)
 *.json
 
 # Packaging
-*.zip
+packaging/dist/
+packaging/build/
+packaging/*.zip
+packaging/*.exe
