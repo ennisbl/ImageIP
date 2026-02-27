@@ -174,10 +174,10 @@ sequenceDiagram
     GUI->>User: Select image dialog
     User-->>GUI: Choose signed image
     
-    GUI->>SignatureVerifier: verify_image_signature(path, profile)
+    GUI->>VerificationService: verify_with_profile(path, profile)
     
-    SignatureVerifier->>ImageFile: Load EXIF metadata
-    ImageFile-->>SignatureVerifier: Raw EXIF data
+    VerificationService->>ImageFile: Load EXIF metadata
+    ImageFile-->>VerificationService: Raw EXIF data
     
     SignatureVerifier->>SignatureUtils: extract_signature_from_exif(raw_data)
     SignatureUtils->>SignatureUtils: Decode UserComment
@@ -287,7 +287,7 @@ The process ensures that any modification to either the visual content or the at
 |--------|---------|---------------|
 | `signature_utils.py` | Signature handling utilities | `extract_signature_from_exif()` |
 | `signature_viewer.py` | Signature display & verification | `view_embedded_signature()` |
-| `signature_verifier.py` | Signature verification | `verify_image_signature()` |
+| `verification_service.py` | Centralized signature verification | `VerificationService.verify_with_profile()` |
 | `utils.py` | Cross-platform utilities | `has_transparency()`, `extract_creation_year()` |
 | `copyright_types.py` | License type definitions | `LICENSE_CHOICES`, `LICENSE_URLS` |
 

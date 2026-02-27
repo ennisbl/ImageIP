@@ -79,11 +79,11 @@ def compute_image_fingerprint(image_path: str, profile: dict, debug: bool = Fals
     Returns:
       A SHA-256 hash (string) computed from the image pixels combined with the attribution data.
     """
-    from utils import extract_creation_year, normalise_strings
+    from utils import extract_creation_datetime, normalise_strings
     from crypto_fingerprint import get_attribution_bytes, compute_visual_hash
     from copyright_types import LICENSE_URLS
 
-    year = extract_creation_year(image_path)
+    year = extract_creation_datetime(image_path).year
     author = normalise_strings(profile.get("author", ""))
     copyright_holder = normalise_strings(profile.get("copyright", ""))
     license = normalise_strings(profile.get("license", ""))
@@ -92,7 +92,8 @@ def compute_image_fingerprint(image_path: str, profile: dict, debug: bool = Fals
     # Get attribution bytes (or Base64; name should imply what it returns)
     attribution_bytes = get_attribution_bytes(author, copyright_holder, license, year)
 
-    # Compute the image fingerprint using the provided attribution data
+    # Compute the image fingerprint directly from the image (no additional JPEG processing)
+    # The image was already processed during signing, so we don't need to process it again
     sha256 = compute_visual_hash(image_path, attribution_bytes, debug=debug)
     if debug:
         print("[DEBUG] Computed SHA-256:", sha256)

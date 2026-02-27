@@ -42,15 +42,15 @@ def has_transparency(image: Image.Image) -> bool:
     )
 
 
-def extract_creation_year(image_path: str) -> int:
+def extract_creation_datetime(image_path: str) -> datetime:
     """
-    Extract the creation year from EXIF or fallback to file timestamps.
+    Extract the creation datetime from EXIF or fallback to file timestamps.
 
     Args:
         image_path (str): Path to image file.
 
     Returns:
-        int: Earliest known year of image creation.
+        datetime: Earliest known datetime of image creation.
     """
     try:
         exif = piexif.load(image_path)
@@ -64,15 +64,28 @@ def extract_creation_year(image_path: str) -> int:
             if val:
                 decoded = val.decode() if isinstance(val, bytes) else val
                 dt = datetime.strptime(decoded, "%Y:%m:%d %H:%M:%S")
-                return dt.year
+                return dt
     except Exception:
         pass
 
     try:
         stat = os.stat(image_path)
-        return min(datetime.fromtimestamp(stat.st_ctime), datetime.fromtimestamp(stat.st_mtime)).year
+        # Use birth time (creation time) if available (Windows, macOS), otherwise fall back to mtime
+        if hasattr(stat, 'st_birthtime'):
+            # macOS/BSD systems
+            creation_time = datetime.fromtimestamp(stat.st_birthtime)
+        elif platform.system() == 'Windows' and hasattr(stat, 'st_ctime'):
+            # Windows - st_ctime is actually creation time
+            creation_time = datetime.fromtimestamp(stat.st_ctime)
+        else:
+            # Unix-like systems - use modification time as best approximation
+            creation_time = datetime.fromtimestamp(stat.st_mtime)
+        
+        # Return the earlier of creation time and modification time
+        return min(creation_time, datetime.fromtimestamp(stat.st_mtime))
     except Exception:
-        return datetime.now().year
+        return datetime.now()
+
 
 def tag_filesystem_metadata(file_path: str, label: str):
     """

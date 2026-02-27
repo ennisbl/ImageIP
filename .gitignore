@@ -8,6 +8,10 @@ __pycache__/
 .venv/
 .env/
 
+# Github Codespaces
+.devcontainer/
+.github/
+
 # macOS
 .DS_Store
 
@@ -42,8 +46,7 @@ build/*.spec
 build/.gitignore_build
 
 # Development directories
-dev/
-docs/development/
+__dev__/
 
 # Documentation build artifacts (keep source docs)
 docs/build/

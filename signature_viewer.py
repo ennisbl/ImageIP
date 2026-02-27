@@ -4,7 +4,7 @@ signature_viewer.py — View and verify embedded GPG signatures in images
 Provides:
 - A GUI file picker to inspect the EXIF > UserComment field
 - Displays the full GPG signature in a read-only window
-- (Optional) Verifies the embedded signature against known GPG public keys
+- Verifies the embedded signature using centralized verification service
 
 Usage:
 Call `view_embedded_signature()` from your GUI to allow users to inspect signed image files.
@@ -14,30 +14,22 @@ Requires:
 - GPG keys already present in the local keyring
 """
 
-import hashlib
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
-import piexif
-from piexif.helper import UserComment
-from utils import extract_creation_year
-from crypto_fingerprint import compute_visual_hash, get_attribution_bytes, gpg_manager
-
-# Remove duplicated header handling by importing our centralized function.
-from signature_utils import extract_signature_from_exif
+from verification_service import VerificationService
 
 
 def view_embedded_signature():
     """
-    Opens a file dialog for the user to select a JPEG image, extracts an embedded GPG signature from the image's EXIF UserComment field,
-    verifies the signature against the SHA-256 hash of the image, and displays the verification result in a new window.
+    Opens a file dialog for the user to select a JPEG image, extracts an embedded GPG signature 
+    from the image's EXIF UserComment field, verifies the signature, and displays the verification 
+    result in a new window.
+    
     Workflow:
-      1. Prompts the user to select a JPEG image file.
-      2. Loads the EXIF data from the selected image and attempts to retrieve the embedded signature from the UserComment field.
-      3. Uses `extract_signature_from_exif()` to decode the signature.
-      4. Computes the SHA-256 hash of the image file.
-      5. Verifies the extracted signature against the computed hash using the GPG manager.
-      6. Displays the verification result and the signature in a new window.
-    Displays appropriate error or info dialogs if the image does not contain a signature or if any error occurs during processing.
+      1. Prompts the user to select a JPEG image file
+      2. Uses centralized verification service to check signature validity
+      3. Extracts signature and contact information for display
+      4. Shows verification result and signature in a new window
     """
     filetypes = [("JPEG Images", "*.jpg *.jpeg")]
     path = filedialog.askopenfilename(title="Select Image to Inspect", filetypes=filetypes)
@@ -45,71 +37,53 @@ def view_embedded_signature():
         return
 
     try:
-        exif = piexif.load(path)
-        raw = exif["Exif"].get(piexif.ExifIFD.UserComment)
-        print("[DEBUG] Retrieved raw data from EXIF:", raw)
-        if not raw:
+        # Get signature information using centralized service
+        sig_info = VerificationService.get_signature_info(path)
+        
+        if not sig_info["has_signature"]:
             messagebox.showinfo("No Signature", "This image doesn't contain an embedded signature.")
             return
-
-        # Use the centralized extraction function – it loads (and strips the EXIF header) then decodes Base64.
-        signature = extract_signature_from_exif(raw)
-        print("[DEBUG] Extracted signature using signature_utils:", repr(signature))
-
-        # Extract attribution data from EXIF to reconstruct the same hash used during signing
-        author = exif["0th"].get(piexif.ImageIFD.Artist, b"").decode("utf-8", "ignore").strip()
         
-        # Extract copyright holder from XPAuthor field (where it's actually stored)
-        copyright_holder = ""
-        if piexif.ImageIFD.XPAuthor in exif["0th"]:
-            xp_author_data = exif["0th"][piexif.ImageIFD.XPAuthor]
-            if isinstance(xp_author_data, tuple):
-                # Convert tuple of bytes to bytes, then decode
-                copyright_holder = bytes(xp_author_data).decode("utf-16le", "ignore").strip()
-            elif isinstance(xp_author_data, bytes):
-                copyright_holder = xp_author_data.decode("utf-16le", "ignore").strip()
-            else:
-                print(f"[DEBUG] Unexpected XPAuthor data type: {type(xp_author_data)}")
-                copyright_holder = str(xp_author_data)
+        # Verify signature using centralized service
+        verified = VerificationService.verify_with_exif_extraction(path, debug=True)
         
-        # Extract license from XPKeywords
-        license = ""
-        if piexif.ImageIFD.XPKeywords in exif["0th"]:
-            xp_keywords_data = exif["0th"][piexif.ImageIFD.XPKeywords]
-            if isinstance(xp_keywords_data, tuple):
-                # Convert tuple of bytes to bytes, then decode
-                license = bytes(xp_keywords_data).decode("utf-16le", "ignore").strip()
-            elif isinstance(xp_keywords_data, bytes):
-                license = xp_keywords_data.decode("utf-16le", "ignore").strip()
-            else:
-                print(f"[DEBUG] Unexpected XPKeywords data type: {type(xp_keywords_data)}")
-                license = str(xp_keywords_data)
-        
-        year = extract_creation_year(path)
-        
-        # Compute the same hash used during signing (pixels + attribution)
-        attribution_b64 = get_attribution_bytes(author, copyright_holder, license, year)
-        sha256 = compute_visual_hash(path, attribution_b64)
-
-        # Write signature to temp file for verification
-        from signature_utils import write_signature_to_temp_file
-        tmp_sig_filename = write_signature_to_temp_file(signature)
-        verified = gpg_manager.verify_data(sha256, tmp_sig_filename)
-        import os
-        os.unlink(tmp_sig_filename)
-
+        # Display results
         sigwin = tk.Toplevel()
-        sigwin.title("Embedded Signature")
-        sigwin.geometry("640x440")
+        sigwin.title("Embedded Signature & Metadata")
+        sigwin.geometry("650x500")
 
         status = "✅ Signature is valid" if verified else "⚠️ Signature could not be verified"
         fg = "green" if verified else "orange"
 
         tk.Label(sigwin, text=status, foreground=fg, font=("Segoe UI", 10, "bold")).pack(pady=(10, 5))
-        tk.Label(sigwin, text="GPG Signature (EXIF > UserComment):", font=("Segoe UI", 9, "bold")).pack()
+        
+        # Display contact information if available
+        contact_info = sig_info["contact_info"]
+        if contact_info:
+            contact_frame = tk.Frame(sigwin)
+            contact_frame.pack(fill="x", padx=10, pady=(0, 10))
+            
+            tk.Label(contact_frame, text="📧 Contact Information:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+            
+            contact_text = tk.Text(contact_frame, height=4, wrap="word", font=("Segoe UI", 9))
+            contact_content = ""
+            if contact_info.get("author"):
+                contact_content += f"Author: {contact_info['author']}\n"
+            if contact_info.get("email"):
+                contact_content += f"Email: {contact_info['email']}\n"
+            if contact_info.get("copyright"):
+                contact_content += f"Copyright: {contact_info['copyright']}\n"
+            if contact_info.get("license"):
+                contact_content += f"License: {contact_info['license']}\n"
+            
+            contact_text.insert("1.0", contact_content)
+            contact_text.configure(state="disabled")
+            contact_text.pack(fill="x", pady=(2, 0))
+        
+        tk.Label(sigwin, text="🔐 GPG Signature (EXIF > UserComment):", font=("Segoe UI", 9, "bold")).pack()
 
         box = scrolledtext.ScrolledText(sigwin, wrap="word", font=("Consolas", 9))
-        box.insert("1.0", signature.strip())
+        box.insert("1.0", sig_info["signature"].strip())
         box.configure(state="disabled")
         box.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
@@ -120,78 +94,16 @@ def view_embedded_signature():
 def verify_signed_image(img_path: str, debug: bool = False) -> bool:
     """
     Verifies the signature embedded in the image's EXIF UserComment field.
-    Extracts supporting EXIF metadata, computes the image hash with attribution, and calls GPG manager for verification.
+    Uses the centralized verification service with EXIF profile extraction.
+    
+    Args:
+        img_path (str): Path to the image file
+        debug (bool, optional): Enable debug output
+        
+    Returns:
+        bool: True if signature is valid, False otherwise
     """
-    try:
-        exif = piexif.load(img_path)
-        raw_sig = exif["Exif"].get(piexif.ExifIFD.UserComment)
-        if not raw_sig:
-            if debug:
-                print("[DEBUG] No signature found in EXIF.")
-            return False
-
-        # Use the centralized extraction function.
-        signature = extract_signature_from_exif(raw_sig)
-
-        author = exif["0th"].get(piexif.ImageIFD.Artist, b"").decode("utf-8", "ignore").strip()
-        
-        # Extract copyright holder from XPAuthor field (where it's actually stored)
-        copyright_holder = ""
-        if piexif.ImageIFD.XPAuthor in exif["0th"]:
-            xp_author_data = exif["0th"][piexif.ImageIFD.XPAuthor]
-            if isinstance(xp_author_data, tuple):
-                # Convert tuple of bytes to bytes, then decode
-                copyright_holder = bytes(xp_author_data).decode("utf-16le", "ignore").strip()
-            elif isinstance(xp_author_data, bytes):
-                copyright_holder = xp_author_data.decode("utf-16le", "ignore").strip()
-            else:
-                if debug:
-                    print(f"[DEBUG] Unexpected XPAuthor data type: {type(xp_author_data)}")
-                copyright_holder = str(xp_author_data)
-        
-        license = ""
-        if piexif.ImageIFD.XPKeywords in exif["0th"]:
-            xp_keywords_data = exif["0th"][piexif.ImageIFD.XPKeywords]
-            if isinstance(xp_keywords_data, tuple):
-                # Convert tuple of bytes to bytes, then decode
-                license = bytes(xp_keywords_data).decode("utf-16le", "ignore").strip()
-            elif isinstance(xp_keywords_data, bytes):
-                license = xp_keywords_data.decode("utf-16le", "ignore").strip()
-            else:
-                if debug:
-                    print(f"[DEBUG] Unexpected XPKeywords data type: {type(xp_keywords_data)}")
-                license = str(xp_keywords_data)
-        year = extract_creation_year(img_path)
-
-        attribution_b64 = get_attribution_bytes(author, copyright_holder, license, year)
-        if debug:
-            print("[DEBUG] Author       :", repr(author))
-            print("[DEBUG] Copyright    :", repr(copyright_holder))
-            print("[DEBUG] License URL  :", repr(license))
-            print("[DEBUG] Attribution  :", repr(attribution_b64.decode('utf-8', 'ignore')[:80]) + "...")
-
-        sha256 = compute_visual_hash(img_path, attribution_b64)
-        if debug:
-            print("[DEBUG] Computed SHA-256:", sha256[:64])
-
-        # Write signature to temp file for verification
-        from signature_utils import write_signature_to_temp_file
-        tmp_sig_filename = write_signature_to_temp_file(signature)
-        result = gpg_manager.verify_data(sha256, tmp_sig_filename)
-        import os
-        os.unlink(tmp_sig_filename)
-        
-        if result:
-            print("✅ Signature is valid and image is unchanged.")
-            return True
-        else:
-            if debug:
-                print("[DEBUG] Signature failed to verify.")
-            return False
-
-    except Exception as e:
-        print(f"[!] Verification error: {e}")
-        return False
+    return VerificationService.verify_with_exif_extraction(img_path, debug)
 
 
 if __name__ == "__main__":
@@ -202,6 +114,5 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
     args = parser.parse_args()
 
-    from signature_viewer import verify_signed_image
     result = verify_signed_image(args.image, debug=args.debug)
     exit(0 if result else 1)

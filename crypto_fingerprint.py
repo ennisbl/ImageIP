@@ -119,9 +119,9 @@ class GPGManager:
 
     def __init__(self):
         try:
-            gpg_home = self._detect_gpg_home()
-            print(f"[DEBUG] Using GPG home: {gpg_home}")
-            self.gpg = gnupg.GPG(gnupghome=gpg_home)
+            self.gpg_home = self._detect_gpg_home()
+            print(f"[DEBUG] Using GPG home: {self.gpg_home}")
+            self.gpg = gnupg.GPG(gnupghome=self.gpg_home)
             
             # Configure GPG for non-interactive operation
             self.gpg.options = [
@@ -223,123 +223,157 @@ class GPGManager:
         print(f"[DEBUG] Starting key generation for: {name_email}")
         
         # Extract name from email
-        name = name_email.split("@")[0]
+        name = name_email.split("@")[0].replace(".", " ").title()
         print(f"[DEBUG] Extracted name: {name}")
         
-        # Check GPG version and capabilities
-        try:
-            version_info = self.gpg.version
-            print(f"[DEBUG] GPG version: {version_info}")
-        except Exception as e:
-            print(f"[DEBUG] Could not get GPG version: {e}")
+        # Check if key already exists
+        existing_keys = self.gpg.list_keys(secret=True)
+        for key in existing_keys:
+            for uid in key.get('uids', []):
+                if name_email in uid:
+                    print(f"[DEBUG] Key already exists for {name_email}: {key['fingerprint']}")
+                    return key['fingerprint']
         
-        # Generate key input parameters
+        # Try the most reliable method first - direct subprocess with proper GPG options
         try:
-            input_data = self.gpg.gen_key_input(
-                name_real=name,
-                name_email=name_email,
-                passphrase=passphrase,
-                key_type="RSA",
-                key_length=2048,
-                expire_date=0  # Never expire
-            )
+            print("[DEBUG] Trying direct subprocess method...")
             
-            # Add no-ask-passphrase directive for empty passphrase
-            if not passphrase:
-                input_data += "%no-ask-passphrase\n"
-            
-            print(f"[DEBUG] Generated input data:\n{input_data}")
-        except Exception as e:
-            raise ValueError(f"Failed to generate key input: {e}")
-        
-        # Generate the key using a temporary file approach (more reliable)
-        try:
-            print("[DEBUG] Starting key generation process...")
-            
-            # Create a temporary key generation script
+            # Create a temporary key generation script with explicit batch mode settings
             import tempfile
-            key_script = f"""
-Key-Type: RSA
+            
+            # Create key generation parameters file
+            key_params = f"""Key-Type: RSA
 Key-Length: 2048
-Subkey-Type: RSA
+Subkey-Type: RSA  
 Subkey-Length: 2048
 Name-Real: {name}
 Name-Email: {name_email}
 Expire-Date: 0
-{('%no-ask-passphrase' if not passphrase else f'Passphrase: {passphrase}')}
-%commit
-"""
-            
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.gpg', delete=False) as f:
-                f.write(key_script)
-                script_file = f.name
-            
-            print(f"[DEBUG] Created key generation script: {script_file}")
-            print(f"[DEBUG] Script content:\n{key_script}")
-            
-            # Generate key using the script file
-            import subprocess
-            try:
-                result = subprocess.run([
-                    "gpg", "--batch", "--generate-key", script_file
-                ], capture_output=True, text=True, timeout=60)
-                
-                print(f"[DEBUG] GPG command result: {result.returncode}")
-                print(f"[DEBUG] GPG stdout: {result.stdout}")
-                print(f"[DEBUG] GPG stderr: {result.stderr}")
-                
-                if result.returncode == 0:
-                    # Key generation successful, get the fingerprint
-                    keys = self.gpg.list_keys(secret=True)
-                    for key in keys:
-                        for uid in key.get('uids', []):
-                            if name_email in uid:
-                                fingerprint = key['fingerprint']
-                                print(f"[DEBUG] Found generated key fingerprint: {fingerprint}")
-                                return fingerprint
-                    
-                    raise ValueError("Key generated but could not find fingerprint")
-                else:
-                    raise ValueError(f"GPG command failed with return code {result.returncode}: {result.stderr}")
-                    
-            finally:
-                # Clean up the script file
-                try:
-                    os.unlink(script_file)
-                except:
-                    pass
-                    
-        except Exception as e:
-            print(f"[DEBUG] Subprocess method failed: {e}")
-            
-            # Fallback to original method with different settings
-            try:
-                print("[DEBUG] Trying fallback method...")
-                
-                # Try with minimal settings
-                input_data = f"""
-Key-Type: RSA
-Key-Length: 2048
-Name-Real: {name}
-Name-Email: {name_email}
-Expire-Date: 0
 %no-ask-passphrase
+%no-protection
 %commit
 """
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                f.write(key_params)
+                params_file = f.name
+            
+            print(f"[DEBUG] Created key parameters file: {params_file}")
+            print(f"[DEBUG] Parameters:\n{key_params}")
+            
+            # Set up environment for batch operation
+            env = os.environ.copy()
+            env['GPG_TTY'] = ''  # Disable TTY
+            
+            # Run GPG with explicit batch mode and no-tty options
+            cmd = [
+                "gpg", 
+                "--batch",
+                "--no-tty", 
+                "--yes",
+                "--quiet",
+                "--generate-key",
+                params_file
+            ]
+            
+            print(f"[DEBUG] Running command: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=120,
+                env=env
+            )
+            
+            print(f"[DEBUG] GPG command exit code: {result.returncode}")
+            print(f"[DEBUG] GPG stdout: {result.stdout}")
+            print(f"[DEBUG] GPG stderr: {result.stderr}")
+            
+            # Clean up params file
+            try:
+                os.unlink(params_file)
+            except:
+                pass
+            
+            if result.returncode == 0:
+                # Key generation successful, find the new key
+                print("[DEBUG] Key generation completed, searching for new key...")
                 
-                key = self.gpg.gen_key(input_data)
-                print(f"[DEBUG] Fallback key generation result: {key}")
-                print(f"[DEBUG] Fallback key status: {key.status}")
-                print(f"[DEBUG] Fallback key stderr: {key.stderr}")
-                print(f"[DEBUG] Fallback key fingerprint: {key.fingerprint}")
+                # Refresh the GPG instance and search for the key
+                self.gpg = gnupg.GPG(gnupghome=self.gpg_home)
+                keys = self.gpg.list_keys(secret=True)
                 
-                if key and key.fingerprint:
-                    return key.fingerprint
-                else:
-                    raise ValueError(f"Fallback method also failed. Status: {key.status}, stderr: {key.stderr}")
-                    
-            except Exception as e2:
-                raise ValueError(f"Both key generation methods failed. Primary: {e}, Fallback: {e2}")
+                for key in keys:
+                    for uid in key.get('uids', []):
+                        if name_email in uid:
+                            fingerprint = key['fingerprint']
+                            print(f"[DEBUG] Found generated key fingerprint: {fingerprint}")
+                            return fingerprint
+                
+                raise ValueError("Key generated but could not find fingerprint in keyring")
+            else:
+                print(f"[DEBUG] Direct subprocess failed with code {result.returncode}")
+                
+        except Exception as e:
+            print(f"[DEBUG] Direct subprocess method failed: {e}")
+        
+        # Fallback to python-gnupg with enhanced settings
+        try:
+            print("[DEBUG] Trying python-gnupg fallback method...")
+            
+            # Create a new GPG instance with batch mode settings
+            gpg_options = [
+                '--batch',
+                '--no-tty', 
+                '--yes',
+                '--quiet',
+                '--trust-model', 'always'
+            ]
+            
+            # Create temporary GPG instance with batch settings
+            temp_gpg = gnupg.GPG(
+                gnupghome=self.gpg_home,
+                options=gpg_options
+            )
+            
+            # Generate key input with all necessary directives
+            input_data = temp_gpg.gen_key_input(
+                name_real=name,
+                name_email=name_email,
+                passphrase="",  # Always use empty passphrase
+                key_type="RSA",
+                key_length=2048,
+                expire_date=0
+            )
+            
+            # Add additional directives for unattended generation
+            input_data += "%no-ask-passphrase\n"
+            input_data += "%no-protection\n"
+            
+            print(f"[DEBUG] Using input data:\n{input_data}")
+            
+            # Generate the key
+            key = temp_gpg.gen_key(input_data)
+            
+            print(f"[DEBUG] Key generation result: {key}")
+            print(f"[DEBUG] Key status: {key.status}")
+            print(f"[DEBUG] Key stderr: {key.stderr}")
+            print(f"[DEBUG] Key fingerprint: {key.fingerprint}")
+            
+            if key and key.fingerprint:
+                # Refresh main GPG instance
+                self.gpg = gnupg.GPG(gnupghome=self.gpg_home)
+                return key.fingerprint
+            else:
+                error_msg = f"Python-gnupg method failed. Status: {key.status if key else 'None'}"
+                if key and key.stderr:
+                    error_msg += f", stderr: {key.stderr}"
+                raise ValueError(error_msg)
+                
+        except Exception as e:
+            print(f"[DEBUG] Python-gnupg fallback failed: {e}")
+            raise ValueError(f"All key generation methods failed. Last error: {e}")
 
     def export_public_key(self, fingerprint: str, output_path: str) -> None:
         """

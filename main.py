@@ -12,22 +12,20 @@ License: MIT
 Version: 1.1.1
 """
 
-def get_version():
-    """Get version from setup.py without triggering setuptools."""
-    import os
-    import re
-    setup_path = os.path.join(os.path.dirname(__file__), 'setup.py')
-    with open(setup_path, 'r') as f:
-        content = f.read()
-    
-    # Find VERSION = "x.x.x" pattern
-    version_match = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', content)
-    if version_match:
-        return version_match.group(1)
-    return "1.1.0"  # fallback
+import os
+import sys
+import tkinter as tk
+from tkinter import messagebox
 
-VERSION = get_version()
-__version__ = VERSION
+# Add build directory to path for project_config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'build'))
+
+try:
+    from build.project_config import VERSION, APP_NAME
+except ImportError:
+    # Fallback if project_config is not available
+    VERSION = "Unknown"
+    APP_NAME = "ImageIP"
 
 from gui import launch_gui
 

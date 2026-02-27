@@ -36,6 +36,8 @@ import os
 import subprocess
 import platform
 import webbrowser
+import json
+from datetime import datetime
 from PIL import Image
 import piexif
 from piexif.helper import UserComment
@@ -44,12 +46,14 @@ import base64
 
 from utils import (
     has_transparency,
-    extract_creation_year,
+    extract_creation_datetime,
     tag_filesystem_metadata,
     normalise_strings,
 )
 from copyright_types import LICENSE_URLS
 from crypto_fingerprint import compute_visual_hash, get_attribution_bytes, gpg_manager
+from metadata_manager import embed_profile_metadata
+from exif_service import EXIFService
 
 SUPPORTED_FORMATS = ('.jpg', '.jpeg', '.png', '.webp', '.tiff', '.bmp')
 
@@ -94,7 +98,28 @@ def sign_images_in_folder(folder_path: str, profile: dict, open_folder=True, deb
         return
 
     files = [f for f in os.listdir(folder_path) if f.lower().endswith(SUPPORTED_FORMATS)]
-    gpg_key = "4D08AD65CF951188848876CCD45D139CF7A5C3A8" # New key without passphrase
+    
+    # Get GPG key from profile
+    gpg_key_email = profile.get("gpg_key") or profile.get("email", "")
+    if not gpg_key_email:
+        messagebox.showerror("Profile Error", "No GPG key or email found in profile")
+        return
+    
+    # Find the GPG key fingerprint for this email
+    secret_keys = gpg_manager.gpg.list_keys(secret=True)
+    gpg_key = None
+    
+    for key in secret_keys:
+        for uid in key.get("uids", []):
+            if gpg_key_email.lower() in uid.lower():
+                gpg_key = key["fingerprint"]
+                break
+        if gpg_key:
+            break
+    
+    if not gpg_key:
+        messagebox.showerror("GPG Key Error", f"No GPG key found for email: {gpg_key_email}")
+        return
 
     # Convert transparency-capable non-JPEGs to JPEG, and leave originals untouched
     for filename in files:
@@ -106,7 +131,7 @@ def sign_images_in_folder(folder_path: str, profile: dict, open_folder=True, deb
                 image = Image.open(src_path)
                 if has_transparency(image):
                     # Tag original and skip conversion
-                    year = extract_creation_year(src_path)
+                    year = extract_creation_datetime(src_path).year
                     label = f"© {year} {profile.get('copyright', '')}"
                     tag_filesystem_metadata(src_path, label)
                     print(f"⚪ Skipped signing {filename} (transparency preserved)")
@@ -128,10 +153,11 @@ def sign_images_in_folder(folder_path: str, profile: dict, open_folder=True, deb
         path = os.path.join(folder_path, filename)
         try:
             # Extract metadata
-            year = extract_creation_year(path)
+            year = extract_creation_datetime(path).year
             author = normalise_strings(profile.get("author", ""))
             copyright_holder = normalise_strings(profile.get("copyright", ""))
             license = normalise_strings(profile.get("license", ""))
+            email = profile.get("email", "") or profile.get("gpg_key", "")  # Use email field or fall back to GPG key
             license_url = LICENSE_URLS.get(license)
 
             attribution_b64 = get_attribution_bytes(author, copyright_holder, license, year)
@@ -168,26 +194,33 @@ def sign_images_in_folder(folder_path: str, profile: dict, open_folder=True, deb
             print("signature_str type:", type(signature_str))
             print("signature_b64_bytes type:", type(signature_b64))
 
-            # Embed signature in EXIF
-            try:
-                exif_dict = piexif.load(path)
-            except Exception:
-                exif_dict = {"0th": {}, "Exif": {}, "GPS": {}, "Interop": {}, "1st": {}, "thumbnail": None}
-
-            exif_dict["0th"][piexif.ImageIFD.Artist] = author.encode()
-            exif_dict["0th"][piexif.ImageIFD.Copyright] = f"©{year} {copyright_holder}.".encode()
-            exif_dict["0th"][piexif.ImageIFD.XPAuthor] = copyright_holder.encode("utf-16le")
-            exif_dict["0th"][piexif.ImageIFD.XPKeywords] = license.encode("utf-16le")
+            # Embed signature in EXIF using centralized service
+            exif_dict = EXIFService.load_exif_safely(path)
+            
+            # Embed profile metadata
+            EXIFService.embed_profile_metadata(exif_dict, profile, email)
+            
+            # Add license URL if available
             if license_url:
                 exif_dict["0th"][piexif.ImageIFD.XPComment] = license_url.encode("utf-16le")
-            # ✅ Step 3: directly pass to UserComment.dump()
-            exif_dict["Exif"][piexif.ExifIFD.UserComment] = UserComment.dump(signature_b64)
+                
+            # Create enhanced contact data
+            contact_data = {
+                "email": email,
+                "author": author,
+                "copyright": copyright_holder,
+                "license": license,
+                "timestamp": datetime.now().isoformat(),
+                "tool": "ImageIP"
+            }
+            
+            # Embed enhanced signature with contact info
+            EXIFService.embed_enhanced_signature(exif_dict, signature_b64, contact_data)
 
             print("[DEBUG] Base64 signature used:", signature_b64[:60])
-            print("UserComment final type:", type(UserComment.dump(signature_b64)))  # Should be <class 'bytes'>
+            print(f"✅ Signed: {filename}")
 
             piexif.insert(piexif.dump(exif_dict), path)
-            print(f"✅ Signed: {filename}")
 
         except Exception as e:
             print(f"[!] Error signing {filename}: {e}")

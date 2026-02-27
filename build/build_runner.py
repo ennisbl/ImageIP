@@ -10,19 +10,11 @@ import shutil
 import subprocess
 import json
 from pathlib import Path
+from build.project_config import VERSION
 
 def get_version_from_setup():
-    """Extract VERSION from setup.py without importing it."""
-    setup_path = Path(__file__).parent / "setup.py"
-    with open(setup_path, 'r') as f:
-        content = f.read()
-    
-    # Find VERSION = "x.x.x" pattern
-    version_match = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', content)
-    if version_match:
-        return version_match.group(1)
-    else:
-        raise ValueError("Could not find VERSION in setup.py")
+    """Get VERSION from project configuration."""
+    return VERSION
 
 class SimpleBuilder:
     def __init__(self, source_repo_path, build_workspace_path=None):

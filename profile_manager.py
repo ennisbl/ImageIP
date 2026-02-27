@@ -58,14 +58,18 @@ def prompt_for_profile(existing=None):
     copyright_entry.pack()
     copyright_entry.insert(0, existing.get("copyright", "") if existing else "")
 
-    ttk.Label(win, text="GPG Key (Email)").pack(pady=(10, 0))
-    gpg_var = tk.StringVar()
-    gpg_entry = ttk.Entry(win, textvariable=gpg_var)
-    gpg_entry.pack()
-    gpg_entry.insert(0, existing.get("gpg_key", "") if existing else "")
+    ttk.Label(win, text="Email Address").pack(pady=(10, 0))
+    email_var = tk.StringVar()
+    email_entry = ttk.Entry(win, textvariable=email_var)
+    email_entry.pack()
+    # Use email field or fall back to gpg_key for backwards compatibility
+    existing_email = existing.get("email", "") if existing else ""
+    if not existing_email and existing:
+        existing_email = existing.get("gpg_key", "")
+    email_entry.insert(0, existing_email)
     
     # Info about automatic key generation
-    info_text = "A signing key will be created automatically for this email"
+    info_text = "A GPG signing key will be created automatically for this email"
     ttk.Label(win, text=info_text, font=("Segoe UI", 8), foreground="gray").pack(pady=(5, 0))
 
     ttk.Label(win, text="License").pack(pady=(10, 0))
@@ -78,12 +82,15 @@ def prompt_for_profile(existing=None):
         name = name_var.get().strip()
         author = author_var.get().strip()
         copyright_holder = copyright_var.get().strip()
-        gpg_key = gpg_var.get().strip()
+        email = email_var.get().strip()
         license_choice = license_var.get().strip()
 
         if not name or not author:
             messagebox.showwarning("Missing Info", "Profile name and author are required.")
             return
+
+        # Use email as the GPG key
+        gpg_key = email
 
         if gpg_key and not gpg_manager.key_exists(gpg_key):
             if messagebox.askyesno("GPG Key Missing", f"No signing key found for '{gpg_key}'. Generate it automatically?"):
@@ -98,7 +105,8 @@ def prompt_for_profile(existing=None):
         profile = {
             "name": name,
             "author": author,
-            "gpg_key": gpg_key,
+            "email": email,
+            "gpg_key": gpg_key,  # Same as email for backwards compatibility
             "license": license_choice,
             "copyright": copyright_holder
         }
@@ -118,8 +126,8 @@ def prompt_for_profile(existing=None):
 
     name_entry.bind("<Return>", lambda e: focus_next(e, author_entry))
     author_entry.bind("<Return>", lambda e: focus_next(e, copyright_entry))
-    copyright_entry.bind("<Return>", lambda e: focus_next(e, gpg_entry))
-    gpg_entry.bind("<Return>", lambda e: focus_next(e, license_combo))
+    copyright_entry.bind("<Return>", lambda e: focus_next(e, email_entry))
+    email_entry.bind("<Return>", lambda e: focus_next(e, license_combo))
     license_combo.bind("<Return>", lambda e: on_submit())
 
     win.result = None
@@ -150,9 +158,9 @@ def launch_profile_browser(parent, on_select):
 
         ttk.Label(card, text=prof["name"], font=("Segoe UI", 11, "bold")).pack(anchor="w")
         ttk.Label(card, text=f"Author: {prof.get('author', '—')}").pack(anchor="w")
+        ttk.Label(card, text=f"Email: {prof.get('email', prof.get('gpg_key', '—'))}").pack(anchor="w")  # Fall back to gpg_key for old profiles
         ttk.Label(card, text=f"Copyright: {prof.get('copyright', '—')}").pack(anchor="w")
         ttk.Label(card, text=f"License: {prof.get('license', 'All rights reserved')}").pack(anchor="w")
-        ttk.Label(card, text=f"GPG Key: {prof.get('gpg_key', '')}").pack(anchor="w")
 
         btn_frame = ttk.Frame(card)
         btn_frame.pack(anchor="e", pady=(5, 0))
