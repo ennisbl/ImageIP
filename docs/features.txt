@@ -1,0 +1,11 @@
+features
+- check for signed files
+- bespoke exif tag
+
+verify_signed_image("C:/Users/majik/The Ennrons/Releases/CoverIdeas\YouCouldBeRight_signed.jpg", de
+
+set HASH_DEBUG=1
+python signature_verifier.py "C:\Users\majik\Code\ImageIP\assets\ImageIP_logo_converted.jpg" --debug
+
+TheEnnrons@ImageIP
+echo "Test data" | gpg --detach-sign -u 6E2725AE5E6B40C6 --pinentry-mode=loopback --passphrase "your_passphrase_here" --batch
